@@ -15,6 +15,13 @@
 
 package io.confluent.connect.elasticsearch;
 
+import com.amazonaws.SdkClientException;
+import com.amazonaws.auth.AWS4Signer;
+import com.amazonaws.auth.AWSCredentialsProvider;
+import com.amazonaws.auth.AWSStaticCredentialsProvider;
+import com.amazonaws.auth.BasicAWSCredentials;
+import com.amazonaws.auth.DefaultAWSCredentialsProviderChain;
+import com.amazonaws.util.StringUtils;
 import com.sun.security.auth.module.Krb5LoginModule;
 import java.security.AccessController;
 import java.security.PrivilegedActionException;
@@ -31,6 +38,7 @@ import javax.security.auth.login.AppConfigurationEntry;
 import javax.security.auth.login.Configuration;
 import javax.security.auth.login.LoginContext;
 import org.apache.http.HttpHost;
+import org.apache.http.HttpRequestInterceptor;
 import org.apache.http.auth.AuthSchemeProvider;
 import org.apache.http.auth.AuthScope;
 import org.apache.http.auth.KerberosCredentials;
@@ -71,6 +79,8 @@ public class ConfigCallbackHandler implements HttpClientConfigCallback {
 
   private static final Oid SPNEGO_OID = spnegoOid();
 
+  private static final String ELASTICSEARCH_SERVICE = "es";
+
   private final ElasticsearchSinkConnectorConfig config;
 
   public ConfigCallbackHandler(ElasticsearchSinkConnectorConfig config) {
@@ -105,6 +115,8 @@ public class ConfigCallbackHandler implements HttpClientConfigCallback {
       configureSslContext(builder);
     }
 
+    configureAwsInterceptor(builder);
+
     if (config.isKerberosEnabled() && config.isSslEnabled()) {
       log.info("Using Kerberos and SSL connection to {}.", config.connectionUrls());
     } else if (config.isKerberosEnabled()) {
@@ -116,6 +128,19 @@ public class ConfigCallbackHandler implements HttpClientConfigCallback {
     }
 
     return builder;
+  }
+
+  private void configureAwsInterceptor(HttpAsyncClientBuilder builder) {
+    AWS4Signer signer = new AWS4Signer();
+    signer.setServiceName(ELASTICSEARCH_SERVICE);
+    HttpRequestInterceptor interceptor = new AWSRequestSigningApacheInterceptor(
+        ELASTICSEARCH_SERVICE, signer, getCredentialsProvider());
+
+    builder.addInterceptorLast(interceptor);
+  }
+
+  private AWSCredentialsProvider getCredentialsProvider() {
+    return new DefaultAWSCredentialsProviderChain();
   }
 
   /**
