@@ -338,6 +338,34 @@ public class ElasticsearchSinkConnectorConfig extends AbstractConfig {
   private static final String DATA_STREAM_TYPE_DISPLAY = "Data Stream Type";
   private static final DataStreamType DATA_STREAM_TYPE_DEFAULT = DataStreamType.NONE;
 
+  // AWS Config
+  private static final String AWS_IS_ENABLED_CONFIG = "aws.enabled";
+  private static final boolean AWS_IS_ENABLED_DEFAULT = false;
+  private static final String AWS_IS_ENABLED_DOC = "Flag for determine is AWS interceptor enabled";
+  private static final String AWS_IS_ENABLED_DISPLAY = "AWS is Enabled";
+
+
+  private static final String AWS_CREDENTIAL_TYPE_CONFIG = "aws.credential.type";
+  private static final AwsCredentialType AWS_CREDENTIAL_TYPE_DEFAULT = AwsCredentialType.DEFAULT;
+  private static final String AWS_CREDENTIAL_TYPE_DOC = "Type for determine is AWS credential " +
+      "provider";
+  private static final String AWS_CREDENTIAL_TYPE_DISPLAY = "AWS Credential Type";
+
+  private static final String AWS_ACCESS_KEY_ID_CONFIG = "aws.access.key.id";
+  private static final String AWS_ACCESS_KEY_ID_DEFAULT = null;
+  private static final String AWS_ACCESS_KEY_ID_DOC = "AWS Access Key ID";
+  private static final String AWS_ACCESS_KEY_ID_DISPLAY = "AWS Access Key ID";
+
+  private static final String AWS_SECRET_ACCESS_KEY_CONFIG = "aws.secret.access.key";
+  private static final String AWS_SECRET_ACCESS_KEY_DEFAULT = null;
+  private static final String AWS_SECRET_ACCESS_KEY_DOC = "AWS Secret Access Key";
+  private static final String AWS_SECRET_ACCESS_KEY_DISPLAY = "AWS Secret Access Key";
+
+  private static final String AWS_REGION_CONFIG = "aws.region";
+  private static final String AWS_REGION_DEFAULT = null;
+  private static final String AWS_REGION_DOC = "Region of AWS ES";
+  private static final String AWS_REGION_DISPLAY = "AWS Region";
+
   public static final String DATA_STREAM_TIMESTAMP_CONFIG = "data.stream.timestamp.field";
   private static final String DATA_STREAM_TIMESTAMP_DOC = String.format(
       "The Kafka record field to use as the timestamp for the ``@timestamp`` field in documents "
@@ -361,6 +389,7 @@ public class ElasticsearchSinkConnectorConfig extends AbstractConfig {
   private static final String SSL_GROUP = "Security";
   private static final String KERBEROS_GROUP = "Kerberos";
   private static final String DATA_STREAM_GROUP = "Data Stream";
+  private static final String AWS_GROUP = "AWS";
 
   public enum BehaviorOnMalformedDoc {
     IGNORE,
@@ -390,6 +419,11 @@ public class ElasticsearchSinkConnectorConfig extends AbstractConfig {
     UPSERT
   }
 
+  public enum AwsCredentialType {
+    DEFAULT,
+    CLIENTIDSECRET
+  }
+
   protected static ConfigDef baseConfigDef() {
     final ConfigDef configDef = new ConfigDef();
     addConnectorConfigs(configDef);
@@ -398,6 +432,7 @@ public class ElasticsearchSinkConnectorConfig extends AbstractConfig {
     addSslConfigs(configDef);
     addKerberosConfigs(configDef);
     addDataStreamConfigs(configDef);
+    addAwsConfigs(configDef);
     return configDef;
   }
 
@@ -814,6 +849,66 @@ public class ElasticsearchSinkConnectorConfig extends AbstractConfig {
     );
   }
 
+  private static void addAwsConfigs(ConfigDef configDef) {
+    int order = 0;
+    configDef
+        .define(
+            AWS_IS_ENABLED_CONFIG,
+            Type.BOOLEAN,
+            AWS_IS_ENABLED_DEFAULT,
+            Importance.HIGH,
+            AWS_IS_ENABLED_DOC,
+            AWS_GROUP,
+            ++order,
+            Width.MEDIUM,
+            AWS_IS_ENABLED_DISPLAY
+        )
+        .define(
+            AWS_CREDENTIAL_TYPE_CONFIG,
+            Type.STRING,
+            AWS_CREDENTIAL_TYPE_DEFAULT.name(),
+            Importance.HIGH,
+            AWS_CREDENTIAL_TYPE_DOC,
+            AWS_GROUP,
+            ++order,
+            Width.MEDIUM,
+            AWS_CREDENTIAL_TYPE_DISPLAY
+        )
+        .define(
+            AWS_ACCESS_KEY_ID_CONFIG,
+            Type.STRING,
+            AWS_ACCESS_KEY_ID_DEFAULT,
+            Importance.HIGH,
+            AWS_ACCESS_KEY_ID_DOC,
+            AWS_GROUP,
+            ++order,
+            Width.MEDIUM,
+            AWS_ACCESS_KEY_ID_DISPLAY
+        )
+        .define(
+            AWS_SECRET_ACCESS_KEY_CONFIG,
+            Type.STRING,
+            AWS_SECRET_ACCESS_KEY_DEFAULT,
+            Importance.HIGH,
+            AWS_SECRET_ACCESS_KEY_DOC,
+            AWS_GROUP,
+            ++order,
+            Width.MEDIUM,
+            AWS_SECRET_ACCESS_KEY_DISPLAY
+        )
+        .define(
+            AWS_REGION_CONFIG,
+            Type.STRING,
+            AWS_REGION_DEFAULT,
+            Importance.HIGH,
+            AWS_REGION_DOC,
+            AWS_GROUP,
+            ++order,
+            Width.MEDIUM,
+            AWS_REGION_DISPLAY
+        );
+  }
+
   public static final ConfigDef CONFIG = baseConfigDef();
 
   public ElasticsearchSinkConnectorConfig(Map<String, String> props) {
@@ -1009,6 +1104,27 @@ public class ElasticsearchSinkConnectorConfig extends AbstractConfig {
 
   public WriteMethod writeMethod() {
     return WriteMethod.valueOf(getString(WRITE_METHOD_CONFIG).toUpperCase());
+  }
+
+  // AWS getter
+  public AwsCredentialType awsCredentialType() {
+    return AwsCredentialType.valueOf(getString(AWS_CREDENTIAL_TYPE_CONFIG).toUpperCase());
+  }
+
+  public boolean awsEnabled() {
+    return getBoolean(AWS_IS_ENABLED_CONFIG);
+  }
+
+  public String awsRegion() {
+    return getString(AWS_REGION_CONFIG);
+  }
+
+  public String awsAccessKeyId() {
+    return getString(AWS_ACCESS_KEY_ID_CONFIG);
+  }
+
+  public String awsSecretAccessKey() {
+    return getString(AWS_SECRET_ACCESS_KEY_CONFIG);
   }
 
   private static class DataStreamDatasetValidator implements Validator {
