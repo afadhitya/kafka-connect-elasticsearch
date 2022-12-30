@@ -115,7 +115,9 @@ public class ConfigCallbackHandler implements HttpClientConfigCallback {
       configureSslContext(builder);
     }
 
-    configureAwsInterceptor(builder);
+    if (config.awsEnabled()) {
+      configureAwsInterceptor(builder);
+    }
 
     if (config.isKerberosEnabled() && config.isSslEnabled()) {
       log.info("Using Kerberos and SSL connection to {}.", config.connectionUrls());
@@ -133,6 +135,7 @@ public class ConfigCallbackHandler implements HttpClientConfigCallback {
   private void configureAwsInterceptor(HttpAsyncClientBuilder builder) {
     AWS4Signer signer = new AWS4Signer();
     signer.setServiceName(ELASTICSEARCH_SERVICE);
+    signer.setRegionName(config.awsRegion());
     HttpRequestInterceptor interceptor = new AWSRequestSigningApacheInterceptor(
         ELASTICSEARCH_SERVICE, signer, getCredentialsProvider());
 
@@ -140,7 +143,23 @@ public class ConfigCallbackHandler implements HttpClientConfigCallback {
   }
 
   private AWSCredentialsProvider getCredentialsProvider() {
-    return new DefaultAWSCredentialsProviderChain();
+
+    if (config.awsCredentialType().equals(ElasticsearchSinkConnectorConfig.AwsCredentialType.DEFAULT)) {
+      return new DefaultAWSCredentialsProviderChain();
+    } else {
+      String accessKey = config.awsAccessKeyId();
+      String secretKey = config.awsSecretAccessKey();
+
+      accessKey = StringUtils.trim(accessKey);
+      secretKey = StringUtils.trim(secretKey);
+      if (StringUtils.isNullOrEmpty(accessKey) || StringUtils.isNullOrEmpty(secretKey)) {
+        throw new SdkClientException(
+            "Unable to load AWS credentials from environment variables (ES_AWS_ACCESS_KEY_ID and ES_AWS_SECRET_ACCESS_KEY)");
+      }
+
+      return new AWSStaticCredentialsProvider(new BasicAWSCredentials(accessKey, secretKey));
+
+    }
   }
 
   /**
